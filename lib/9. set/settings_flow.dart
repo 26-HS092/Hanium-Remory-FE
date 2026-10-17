@@ -64,9 +64,8 @@ String _voiceSubtitle(DeviceVoice voice) {
   final status = voice.statusText;
   if (voice.isBuiltIn) return '인형에 들어 있는 목소리 · $status';
   final who = voice.ownerLabel;
-  final how = voice.isImported ? '가져옴' : '등록';
-  if (who.isEmpty) return '가족이 $how · $status';
-  return '$who 님이 $how · $status';
+  if (who.isEmpty) return '가족이 등록 · $status';
+  return '$who 님이 등록 · $status';
 }
 
 Future<_HubData> _loadHub() async {

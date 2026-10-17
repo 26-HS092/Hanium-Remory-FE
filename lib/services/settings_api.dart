@@ -1625,9 +1625,6 @@ class DeviceVoice {
 
   bool get isBuiltIn => protectorId == null;
 
-  /// 녹음 없이 Fish 모델 ID 로 가져온 목소리. 녹음으로 만든 목소리는 원본이 있다.
-  bool get isImported => !isBuiltIn && (audioUrl ?? '').isEmpty;
-
   /// 지울 수 있는지. 가족 누구나 골라 쓸 수 있지만, 지우는 건 등록한 본인만
   /// 한다(서버도 같은 기준으로 막는다). 인형에 든 기본 목소리는 아무도 못 지운다.
   bool canBeDeletedBy(int? myProtectorId) =>
