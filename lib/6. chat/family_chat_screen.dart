@@ -1104,43 +1104,59 @@ class _VoicePlayButton extends StatefulWidget {
 }
 
 class _VoicePlayButtonState extends State<_VoicePlayButton> {
-  AudioPlayer? _player;
-  StreamSubscription<void>? _completeSubscription;
+  final AudioPlayer _player = AudioPlayer();
+  late final StreamSubscription<void> _completeSubscription;
   bool _playing = false;
+
+  /// 말풍선이 보일 때 미리 받아 둔 녹음이 준비됐는지. 누를 때마다 서버(S3)에서
+  /// 받아 재생을 준비하면 소리가 늦게 나서, 화면에 뜨자마자 받아 둔다.
+  late final Future<bool> _prepared;
+
+  @override
+  void initState() {
+    super.initState();
+    _completeSubscription = _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playing = false);
+    });
+    // 끝까지 들어도 받아 둔 녹음을 버리지 않아야 다시 들을 때도 바로 나온다.
+    _prepared = _player
+        .setReleaseMode(ReleaseMode.stop)
+        .then((_) => _player.setSource(UrlSource(_playableUrl(widget.url))))
+        .then((_) => true, onError: (_) => false);
+  }
 
   @override
   void dispose() {
-    unawaited(_completeSubscription?.cancel());
-    unawaited(_player?.dispose());
+    unawaited(_completeSubscription.cancel());
+    unawaited(_player.dispose());
     super.dispose();
   }
 
   Future<void> _toggle() async {
-    final player = _player ??= AudioPlayer();
-    _completeSubscription ??= player.onPlayerComplete.listen((_) {
-      if (mounted) setState(() => _playing = false);
-    });
-
+    if (_playing) {
+      setState(() => _playing = false);
+      await _player.pause();
+      return;
+    }
+    // 받는 동안에도 눌린 걸 알 수 있게 바로 ⏸ 로 바꾼다.
+    setState(() => _playing = true);
     try {
-      if (_playing) {
-        await player.pause();
-        if (mounted) setState(() => _playing = false);
-        return;
-      }
-      if (player.state == PlayerState.paused) {
-        await player.resume();
+      final ready = _player.state == PlayerState.paused || await _prepared;
+      // 받는 사이에 다시 눌러 멈추셨으면 틀지 않는다.
+      if (!_playing) return;
+      if (ready) {
+        await _player.resume();
       } else {
-        // 처음이거나 끝까지 들은 뒤. 주소는 목록을 받을 때마다 새로
-        // 서명되므로 누를 때의 것을 쓴다.
-        await player.play(UrlSource(_playableUrl(widget.url)));
+        // 미리 받지 못했다. 주소는 목록을 받을 때마다 새로 서명되므로
+        // 누를 때의 것으로 다시 받는다.
+        await _player.play(UrlSource(_playableUrl(widget.url)));
       }
-      if (mounted) setState(() => _playing = true);
     } catch (_) {
       if (!mounted) return;
       setState(() => _playing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목소리를 재생하지 못했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('목소리를 재생하지 못했어요.')));
     }
   }
 
