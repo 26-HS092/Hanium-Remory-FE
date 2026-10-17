@@ -396,6 +396,21 @@ class SettingsApi {
     return DeviceVoice.fromJson(d as Map<String, dynamic>);
   }
 
+  /// Fish Audio 에 이미 있는 목소리 모델을 ID(또는 fish.audio 모델 주소)로
+  /// 가져온다. 녹음 없이 바로 ready 로 들어오고, 기본 목소리로 고를 수 있다.
+  Future<DeviceVoice> importFishVoice(
+    int deviceId, {
+    required String name,
+    required String modelId,
+  }) async {
+    final d = await _send(
+      'POST',
+      '/devices/$deviceId/voices/fish',
+      body: {'name': name, 'modelId': modelId},
+    );
+    return DeviceVoice.fromJson(d as Map<String, dynamic>);
+  }
+
   /// 목소리 학습 상태 조회(폴링용). training → ready | failed.
   Future<VoiceStatus> voiceStatus(int voiceId) async =>
       VoiceStatus.fromJson(await _get('/voices/$voiceId/status'));
