@@ -598,7 +598,10 @@ class _MessageRow extends StatelessWidget {
         time: message.time,
         mine: message.mine,
         unreadCount: message.unreadCount,
-        child: _PhotoBubble(imageUrl: message.imageUrl),
+        child: _PhotoBubble(
+          imageUrl: message.imageUrl,
+          deliveredToDevice: message.deliveredToDevice,
+        ),
       );
     }
 
@@ -852,10 +855,13 @@ class _NoticeBubble extends StatelessWidget {
 }
 
 class _PhotoBubble extends StatelessWidget {
-  const _PhotoBubble({this.imageUrl});
+  const _PhotoBubble({this.imageUrl, this.deliveredToDevice = false});
 
   /// 서버가 준 조회용 URL. 만료되므로 목록을 다시 받으면 새로 발급된다.
   final String? imageUrl;
+
+  /// 인형이 사진을 받아 화면에 띄웠는지. 받기 전엔 '보내는 중', 받으면 '완료'.
+  final bool deliveredToDevice;
 
   @override
   Widget build(BuildContext context) {
@@ -888,9 +894,9 @@ class _PhotoBubble extends StatelessWidget {
               color: _dark.withValues(alpha: 0.38),
               borderRadius: BorderRadius.circular(99),
             ),
-            child: const Text(
-              '인형 화면에 표시',
-              style: TextStyle(
+            child: Text(
+              deliveredToDevice ? '인형 화면에 표시 완료' : '인형에 보내는 중',
+              style: const TextStyle(
                 fontSize: 8,
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
