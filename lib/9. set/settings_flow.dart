@@ -64,8 +64,9 @@ String _voiceSubtitle(DeviceVoice voice) {
   final status = voice.statusText;
   if (voice.isBuiltIn) return '인형에 들어 있는 목소리 · $status';
   final who = voice.ownerLabel;
-  if (who.isEmpty) return '가족이 등록 · $status';
-  return '$who 님이 등록 · $status';
+  final how = voice.isImported ? '가져옴' : '등록';
+  if (who.isEmpty) return '가족이 $how · $status';
+  return '$who 님이 $how · $status';
 }
 
 Future<_HubData> _loadHub() async {
@@ -1187,6 +1188,27 @@ class _DollSettingsBody extends StatelessWidget {
     }
   }
 
+  Future<void> _importFishVoice(BuildContext context) async {
+    final input = await showDialog<(String, String)>(
+      context: context,
+      builder: (_) => const _FishImportDialog(),
+    );
+    if (input == null || !context.mounted) return;
+    try {
+      await _api.importFishVoice(
+        device.deviceId,
+        name: input.$1,
+        modelId: input.$2,
+      );
+      await reload();
+      if (context.mounted) {
+        _toast(context, '목소리를 가져왔어요. 눌러서 인형 목소리로 고를 수 있어요.');
+      }
+    } catch (e) {
+      if (context.mounted) _toast(context, _errorText(e));
+    }
+  }
+
   Future<void> _deleteVoice(BuildContext context, DeviceVoice voice) async {
     if (voice.isBuiltIn) return;
     final confirmed = await showDialog<bool>(
@@ -1344,6 +1366,13 @@ class _DollSettingsBody extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
+        ),
+        // 녹음 대신 Fish Audio 에 이미 있는 목소리(라이브러리·직접 만든 것)를 쓴다.
+        TextButton.icon(
+          onPressed: () => _importFishVoice(context),
+          icon: const Icon(Icons.download_outlined, size: 18),
+          label: const Text('Fish 목소리 가져오기'),
+          style: TextButton.styleFrom(foregroundColor: _muted),
         ),
         SizedBox(height: 18.h),
         _Label('그 외'),
@@ -3301,6 +3330,76 @@ String _notificationDisplayName(String name) {
     return '${SessionStore.elderHonorific} 음성 요청';
   }
   return name;
+}
+
+/// Fish 목소리 모델을 가져올 때 이름과 모델 ID 를 받는 창.
+/// 입력이 다 있으면 (이름, 모델 ID) 를 돌려주고, 취소하면 null.
+class _FishImportDialog extends StatefulWidget {
+  const _FishImportDialog();
+
+  @override
+  State<_FishImportDialog> createState() => _FishImportDialogState();
+}
+
+class _FishImportDialogState extends State<_FishImportDialog> {
+  final _name = TextEditingController();
+  final _modelId = TextEditingController();
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _modelId.dispose();
+    super.dispose();
+  }
+
+  bool get _ready =>
+      _name.text.trim().isNotEmpty && _modelId.text.trim().isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _bg,
+      title: const Text(
+        'Fish 목소리 가져오기',
+        style: TextStyle(fontWeight: FontWeight.w900),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _InputField(
+              label: '이름',
+              controller: _name,
+              hint: '예: 차분한 목소리',
+              onChanged: (_) => setState(() {}),
+            ),
+            _InputField(
+              label: '모델 ID',
+              controller: _modelId,
+              hint: 'fish.audio 모델 주소를 붙여 넣어도 돼요',
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소', style: TextStyle(color: _muted)),
+        ),
+        TextButton(
+          onPressed: _ready
+              ? () => Navigator.pop(context, (
+                  _name.text.trim(),
+                  _modelId.text.trim(),
+                ))
+              : null,
+          child: const Text('가져오기', style: TextStyle(color: _brown)),
+        ),
+      ],
+    );
+  }
 }
 
 class _InputField extends StatelessWidget {
