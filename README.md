@@ -269,8 +269,8 @@ remory-readme-assets/               README 화면·흐름·구성 이미지
 Dart SDK `^3.12.0` 조건을 충족하는 Flutter SDK와 Android 또는 iOS 기기·에뮬레이터를 준비합니다.
 
 ```bash
-git clone https://github.com/Hanium-Remory/flutter.git
-cd flutter
+git clone https://github.com/26-HS092/Hanium-Remory-FE.git
+cd Hanium-Remory-FE
 flutter pub get
 ```
 
