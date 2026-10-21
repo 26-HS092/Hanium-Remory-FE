@@ -123,9 +123,10 @@ class _VoiceRecordFlowState extends State<VoiceRecordFlow> {
       );
       if (!mounted) return;
       _voiceId = voice.voiceId;
-      setState(() => _enroll = 'training');
-      _next(); // 완료(학습 중) 화면으로
-      _startPolling();
+      // Fish fast 클로닝은 대개 응답에서 바로 ready 다. 아직이면 폴링으로 기다린다.
+      setState(() => _enroll = voice.status);
+      _next(); // 완료 화면으로
+      if (voice.status == 'training') _startPolling();
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -194,6 +195,7 @@ class _VoiceRecordFlowState extends State<VoiceRecordFlow> {
         onBack: _back,
         onRetry: _restartRecording,
         onComplete: _uploadAndPoll,
+        uploading: _busy,
         durationSeconds: _recordedSeconds,
         audio: _recordedAudio ?? Uint8List(0),
       ),
@@ -678,12 +680,16 @@ class VoiceCheckScreen extends StatefulWidget {
     required this.onComplete,
     required this.durationSeconds,
     required this.audio,
+    this.uploading = false,
   });
 
   final VoidCallback onBack;
   final VoidCallback onRetry;
   final VoidCallback onComplete;
   final int durationSeconds;
+
+  /// 서버로 보내는 중(Fish 클로닝까지 기다림). 버튼을 막고 진행 중임을 보여준다.
+  final bool uploading;
 
   /// 방금 녹음한 WAV. 여기서 그대로 재생한다.
   final Uint8List audio;
@@ -815,7 +821,7 @@ class _VoiceCheckScreenState extends State<VoiceCheckScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: widget.onRetry,
+                      onPressed: widget.uploading ? null : widget.onRetry,
                       style: OutlinedButton.styleFrom(
                         minimumSize: Size.fromHeight(56.h),
                         foregroundColor: _brown,
@@ -838,10 +844,21 @@ class _VoiceCheckScreenState extends State<VoiceCheckScreen> {
                     child: _BottomButton(
                       text: '이 목소리로\n인형이 말하게 하기',
                       onTap: widget.onComplete,
+                      loading: widget.uploading,
+                      loadingText: '목소리 보내는 중…',
                     ),
                   ),
                 ],
               ),
+              if (widget.uploading) ...[
+                SizedBox(height: 12.h),
+                Center(
+                  child: Text(
+                    '인형에게 목소리를 가르치고 있어요. 잠시만 기다려 주세요.',
+                    style: _caption(),
+                  ),
+                ),
+              ],
               SizedBox(height: 28.h),
               const _HomeIndicator(),
             ],
@@ -1235,35 +1252,59 @@ class _SuccessMark extends StatelessWidget {
 }
 
 class _BottomButton extends StatelessWidget {
-  const _BottomButton({required this.text, required this.onTap});
+  const _BottomButton({
+    required this.text,
+    required this.onTap,
+    this.loading = false,
+    this.loadingText,
+  });
 
   final String text;
   final VoidCallback onTap;
 
+  /// true 면 눌리지 않고 스피너와 [loadingText] 를 보여준다.
+  final bool loading;
+  final String? loadingText;
+
   @override
   Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 14.sp,
+      height: 1.25,
+      fontWeight: FontWeight.w900,
+    );
     return SizedBox(
       width: double.infinity,
       height: 56.h,
       child: ElevatedButton(
-        onPressed: onTap,
+        onPressed: loading ? null : onTap,
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: _brown,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: _brown.withValues(alpha: 0.75),
+          disabledForegroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.r),
           ),
         ),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14.sp,
-            height: 1.25,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        child: loading
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16.w,
+                    height: 16.w,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Flexible(child: Text(loadingText ?? text, style: style)),
+                ],
+              )
+            : Text(text, textAlign: TextAlign.center, style: style),
       ),
     );
   }
