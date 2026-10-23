@@ -240,6 +240,17 @@ class AuthApi {
     return _toResult(d);
   }
 
+  /// 기기를 바꿔 이 기기에 패스키가 없을 때. Firebase 로 번호를 다시 인증하고
+  /// 이 기기의 패스키를 기존 계정에 더한 뒤 그대로 로그인한다.
+  /// (예전 기기의 패스키도 계속 쓸 수 있다.)
+  Future<AuthResult> registerThisDevice({required String idToken}) async {
+    final d = await _post(kFirebaseVerifyPath, {'idToken': idToken});
+    if (d['alreadyRegistered'] != true) {
+      throw Exception('가입되지 않은 전화번호예요. 처음이시면 가입해 주세요.');
+    }
+    return registerPasskey(d['registrationToken'] as String);
+  }
+
   /// 4) 로그인(등록된 패스키로 서명) → 세션 토큰.
   Future<AuthResult> login(String phone) async {
     final o = await _post('/auth/passkey/authentication/options', {
@@ -260,7 +271,9 @@ class AuthApi {
       userVerification: o['userVerification'] as String?,
       allowCredentials: allow.isEmpty ? null : allow,
       mediation: MediationType.Optional,
-      preferImmediatelyAvailableCredentials: true,
+      // false 여야 이 기기에 패스키가 없을 때도 곧장 실패하지 않고
+      // '다른 기기의 패스키 사용'(QR) 을 띄워 준다. 기기를 바꾼 직후 필요하다.
+      preferImmediatelyAvailableCredentials: false,
     ));
 
     final body = <String, dynamic>{

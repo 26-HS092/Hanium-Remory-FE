@@ -6,9 +6,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:passkeys/exceptions.dart';
 
 import '../main_shell.dart';
 import '../services/auth_api.dart';
+import '../services/firebase_phone_auth.dart';
 import '../services/session_store.dart';
 import 'signup_method_screen.dart';
 
@@ -27,8 +29,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _api = AuthApi();
+  final _phoneAuth = FirebasePhoneAuth();
   final _phoneController = TextEditingController();
   bool _busy = false;
+  String _busyMessage = '패스키로 로그인 중…\n생체인증을 진행하세요';
 
   bool get _isAndroid => defaultTargetPlatform == TargetPlatform.android;
 
@@ -72,25 +76,179 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() => _busy = true);
+    _setBusy(true, '패스키로 로그인 중…\n생체인증을 진행하세요');
     try {
-      final result = await _api.login(phone);
-      await SessionStore.saveSession(
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        protectorId: result.protectorId,
-      );
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainShell()),
-      );
+      await _enter(await _api.login(phone));
+    } on PasskeyAuthCancelledException {
+      _setBusy(false);
+    } on NoCredentialsAvailableException {
+      _setBusy(false);
+      // 기기를 바꾼 경우가 대부분이다. 번호 인증으로 이 기기를 등록하게 한다.
+      if (await _confirmNewDevice()) await _onRegisterThisDevice();
+    } on AuthenticatorException catch (e) {
+      _setBusy(false);
+      _snack(_passkeyErrorMessage(e));
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
+      _setBusy(false);
       _snack('로그인 실패: $e');
     }
   }
+
+  void _setBusy(bool busy, [String? message]) {
+    if (!mounted) return;
+    setState(() {
+      _busy = busy;
+      if (message != null) _busyMessage = message;
+    });
+  }
+
+  Future<void> _enter(AuthResult result) async {
+    await SessionStore.saveSession(
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      protectorId: result.protectorId,
+    );
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainShell()),
+    );
+  }
+
+  /// 새 기기: 문자 인증으로 본인 확인 → 이 기기에 패스키 등록 → 로그인.
+  Future<void> _onRegisterThisDevice() async {
+    if (_busy) return;
+    final phone = _phoneController.text.trim();
+    if (phone.length < 9) {
+      _snack('전화번호를 먼저 입력해 주세요.');
+      return;
+    }
+    try {
+      _setBusy(true, '인증번호 발송 중…');
+      // Android 에서 문자가 자동으로 읽히면 코드 입력 없이 토큰이 바로 온다.
+      var idToken = await _phoneAuth.sendCode(phone);
+      _setBusy(false);
+
+      if (idToken == null) {
+        final code = await _promptOtp(phone);
+        if (code == null || code.trim().isEmpty) return; // 취소
+
+        _setBusy(true, '인증번호 확인 중…');
+        idToken = await _phoneAuth.confirmCode(code.trim());
+      }
+
+      _setBusy(true, '이 기기에 $_passkeyName 등록 중…\n생체인증을 진행하세요');
+      final result = await _api.registerThisDevice(idToken: idToken);
+      await _phoneAuth.signOut();
+      await _enter(result);
+    } on PasskeyAuthCancelledException {
+      _setBusy(false);
+    } on AuthenticatorException catch (e) {
+      _setBusy(false);
+      _snack(_passkeyErrorMessage(e));
+    } catch (e) {
+      _setBusy(false);
+      _snack('실패: $e');
+    }
+  }
+
+  Future<bool> _confirmNewDevice() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text(
+          '기기를 바꾸셨나요?',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          '이 기기에는 등록된 $_passkeyName이 없어요.\n'
+          '문자 인증을 하면 이 기기에서도 로그인할 수 있어요.',
+          style: const TextStyle(fontSize: 13, height: 1.5, color: _muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소', style: TextStyle(color: _muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              '문자 인증하기',
+              style: TextStyle(color: _brown, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  /// 인증번호 입력 다이얼로그. 문자는 Firebase 가 보낸다.
+  Future<String?> _promptOtp(String phone) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text(
+          '인증번호 입력',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$phone 로 보낸 6자리 번호를 입력하세요.',
+              style: const TextStyle(fontSize: 12, color: _muted),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofocus: true,
+              decoration: const InputDecoration(
+                counterText: '',
+                hintText: '000000',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소', style: TextStyle(color: _muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text(
+              '확인',
+              style: TextStyle(color: _brown, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 패키지 예외는 toString 이 'Instance of ...' 로 찍혀서 그대로 보여주면
+  /// 알아볼 수 없다. 사용자가 할 수 있는 일로 바꿔 말한다.
+  String _passkeyErrorMessage(AuthenticatorException e) => switch (e) {
+        NoCredentialsAvailableException() =>
+          '이 기기에는 등록된 $_passkeyName이 없어요.',
+        MissingGoogleSignInException() ||
+        SyncAccountNotAvailableException() =>
+          '패스키를 쓰려면 기기에 Google 계정으로 로그인되어 있어야 해요.',
+        DeviceNotSupportedException() ||
+        PasskeyUnsupportedException() =>
+          '이 기기는 패스키를 지원하지 않아요.',
+        TimeoutException() => '시간이 초과됐어요. 다시 시도해 주세요.',
+        _ => '로그인 실패: $e',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +424,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         SizedBox(height: 6.h),
                         Center(
                           child: TextButton(
+                            onPressed: _busy ? null : _onRegisterThisDevice,
+                            child: Text(
+                              '기기를 바꾸셨나요? 이 기기 등록하기',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: _brown,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: TextButton(
                             onPressed: _busy ? null : _goToSignup,
                             child: Text(
                               '처음이신가요? 가입하기',
@@ -304,7 +475,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: 16.h),
                     Text(
-                      '패스키로 로그인 중…\n생체인증을 진행하세요',
+                      _busyMessage,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
