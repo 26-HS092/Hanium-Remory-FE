@@ -54,34 +54,82 @@ class _PhoneViewport extends StatelessWidget {
 
   final Widget? child;
 
+  static const double _designWidth = 402;
+  static const double _designHeight = 874;
+
+  /// 갤럭시 탭 S7(세로 800×1280dp) 같은 태블릿 기준. 보통 600dp 이상을 태블릿으로 본다.
+  static const double _tabletShortestSide = 600;
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final phoneSize = Size(
-      size.width.clamp(0.0, 402.0),
-      size.height.clamp(0.0, 874.0),
-    );
-    final mediaQuery = MediaQuery.of(context).copyWith(size: phoneSize);
+    final mediaQuery = MediaQuery.of(context);
+    final size = mediaQuery.size;
+    final scale = _scaleFor(size);
 
-    return ColoredBox(
-      color: const Color(0xFFFBF6EE),
-      child: Center(
+    if (scale == 1) {
+      final phoneSize = Size(
+        size.width.clamp(0.0, _designWidth),
+        size.height.clamp(0.0, _designHeight),
+      );
+      return _frame(
         child: SizedBox(
           width: phoneSize.width,
           height: phoneSize.height,
-          child: MediaQuery(
-            data: mediaQuery,
-            child: ScreenUtilInit(
-              designSize: const Size(402, 874),
-              minTextAdapt: true,
-              splitScreenMode: true,
-              enableScaleWH: () => false,
-              enableScaleText: () => false,
-              builder: (context, _) => child ?? const SizedBox.shrink(),
-            ),
+          child: _phone(mediaQuery.copyWith(size: phoneSize)),
+        ),
+      );
+    }
+
+    // 태블릿: 폰 화면을 그대로 키워 세로를 꽉 채운다. 안에서는 여전히
+    // 402 폭 화면으로 그리므로 각 화면을 따로 손볼 필요가 없다.
+    // 키보드·상태바 높이는 실제 픽셀 기준이라 같은 배율로 줄여서 넘긴다.
+    final phoneSize = Size(_designWidth, size.height / scale);
+    final scaled = mediaQuery.copyWith(
+      size: phoneSize,
+      devicePixelRatio: mediaQuery.devicePixelRatio * scale,
+      padding: mediaQuery.padding / scale,
+      viewPadding: mediaQuery.viewPadding / scale,
+      viewInsets: mediaQuery.viewInsets / scale,
+    );
+    return _frame(
+      child: SizedBox(
+        width: _designWidth * scale,
+        height: size.height,
+        child: FittedBox(
+          child: SizedBox(
+            width: phoneSize.width,
+            height: phoneSize.height,
+            child: _phone(scaled),
           ),
         ),
       ),
     );
   }
+
+  /// 폰은 1배 그대로. 태블릿은 폰 화면이 세로에 꼭 맞을 만큼 키운다.
+  /// 가로로 눕혀 세로가 폰보다 짧으면 키울 수 없으니 폰과 같게 둔다.
+  static double _scaleFor(Size size) {
+    if (size.shortestSide < _tabletShortestSide) return 1;
+    final fit = (size.width / _designWidth) < (size.height / _designHeight)
+        ? size.width / _designWidth
+        : size.height / _designHeight;
+    return fit > 1 ? fit : 1;
+  }
+
+  Widget _frame({required Widget child}) => ColoredBox(
+        color: const Color(0xFFFBF6EE),
+        child: Center(child: child),
+      );
+
+  Widget _phone(MediaQueryData data) => MediaQuery(
+        data: data,
+        child: ScreenUtilInit(
+          designSize: const Size(_designWidth, _designHeight),
+          minTextAdapt: true,
+          splitScreenMode: true,
+          enableScaleWH: () => false,
+          enableScaleText: () => false,
+          builder: (context, _) => child ?? const SizedBox.shrink(),
+        ),
+      );
 }
