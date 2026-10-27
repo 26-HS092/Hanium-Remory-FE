@@ -11,9 +11,11 @@ import '../services/push_service.dart';
 import '../services/session_store.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../8. vocie/voice_record_flow.dart';
 import '../main_shell.dart';
+import '../services/auth_api.dart' show kBackendBaseUrl;
 import '../services/device_token_store.dart';
 import '../services/settings_api.dart';
 
@@ -317,10 +319,15 @@ class _HubBody extends StatelessWidget {
         _Section(
           title: '계정',
           children: [
-            const _MenuRow(
+            _MenuRow(
               icon: Icons.shield_outlined,
-              title: '개인정보 및 보안',
+              title: '개인정보처리방침',
               subtitle: '',
+              // Play 는 스토어뿐 아니라 앱 안에서도 방침을 열 수 있어야 한다.
+              onTap: () => launchUrl(
+                Uri.parse('$kBackendBaseUrl/privacy'),
+                mode: LaunchMode.externalApplication,
+              ),
             ),
             _MenuRow(
               icon: Icons.info_outline,
