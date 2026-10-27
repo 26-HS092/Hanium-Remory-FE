@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDEGl--q7UooSKK3TlgjZ_434PD107_iEg',
-    appId: '1:269788002758:android:6fed2c3831fd7f98ab9ac7',
+    appId: '1:269788002758:android:b84c91ad69a5d9bdab9ac7',
     messagingSenderId: '269788002758',
     projectId: 'remory-hanium-app-2af99',
     storageBucket: 'remory-hanium-app-2af99.firebasestorage.app',
