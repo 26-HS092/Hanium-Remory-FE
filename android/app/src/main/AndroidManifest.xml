@@ -30,6 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 사진을 인형 화면 비율(5:3)로 자르는 화면(image_cropper). -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
         <!-- 앱이 꺼져 있을 때 FCM 이 알림을 띄울 채널. 중요도 '높음' 채널이어야
              폰 상단에 팝업으로 내려온다. 채널은 PushService 가 앱 시작 때 만든다. -->
         <meta-data
