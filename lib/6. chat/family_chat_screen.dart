@@ -45,7 +45,7 @@ class _FamilyChatScreenState extends State<FamilyChatScreen> {
   int? _userId;
   int? _myProtectorId;
   String _elderInitial = '';
-  String _elderName = '';
+  String _elderName = SessionStore.elderName ?? '';
   final Map<int, String> _memberInitials = {};
 
   /// 대화방에 연결된 가족 수. 1명(나뿐)이면 헤더 배지를 숨긴다.

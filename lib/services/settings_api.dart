@@ -153,6 +153,7 @@ class SettingsApi {
   Future<MyProfile> myProfile() async {
     final profile = MyProfile.fromJson(await _get('/protectors/me'));
     final linkedUser = profile.mainUser;
+    await SessionStore.setElderName(linkedUser?.name);
     if (linkedUser != null) {
       final userData = await _get('/users/${linkedUser.userId}');
       final gender = ElderUser.fromJson(userData).gender;

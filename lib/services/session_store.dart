@@ -21,9 +21,16 @@ class SessionStore {
   static const _kProtectorId = 'protector_id';
   static const _kSeenOnboarding = 'seen_onboarding';
   static const _kElderGender = 'elder_gender';
+  static const _kElderName = 'elder_name';
 
   static String elderGender = 'female';
   static String get elderHonorific => elderGender == 'male' ? '아버님' : '어머님';
+
+  /// 마지막으로 받은 어르신 이름. 모르면 null.
+  ///
+  /// 화면마다 이름을 서버에서 다시 받는 동안 '나눌 이야기' 가 떴다가
+  /// '김순자님과 나눌 이야기' 로 바뀌었다. 기억해 둔 이름으로 처음부터 그린다.
+  static String? elderName;
 
   /// 세션 만료(재발급 실패)로 로그인 화면으로 되돌리는 처리가 이미 한 번
   /// 실행됐는지. 여러 요청이 동시에 401 을 받아도 화면을 한 번만 옮기려는
@@ -33,6 +40,17 @@ class SessionStore {
   static Future<void> initialize() async {
     final p = await SharedPreferences.getInstance();
     elderGender = p.getString(_kElderGender) ?? 'female';
+    elderName = p.getString(_kElderName);
+  }
+
+  static Future<void> setElderName(String? name) async {
+    elderName = (name == null || name.isEmpty) ? null : name;
+    final p = await SharedPreferences.getInstance();
+    if (elderName == null) {
+      await p.remove(_kElderName);
+    } else {
+      await p.setString(_kElderName, elderName!);
+    }
   }
 
   static Future<void> setElderGender(String gender) async {
@@ -124,6 +142,9 @@ class SessionStore {
     await p.remove(_kAccess);
     await p.remove(_kRefresh);
     await p.remove(_kProtectorId);
+    // 다른 계정으로 들어오면 남의 어르신 이름이 잠깐 보이지 않게 지운다.
+    await p.remove(_kElderName);
+    elderName = null;
   }
 
   static Future<void> setSeenOnboarding() async {
