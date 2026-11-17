@@ -324,7 +324,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const VoiceRecordFlow(),
+                                builder: (_) => VoiceRecordFlow(
+                                  elderName: name.isEmpty ? null : name,
+                                ),
                               ),
                             );
                           },
