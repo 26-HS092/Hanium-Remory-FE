@@ -66,6 +66,7 @@ class _MainShellState extends State<MainShell> {
   int _homeTaps = 0;
   int _homeReselects = 0;
   int _chatTaps = 0;
+  int _settingsReselects = 0;
 
   @override
   void initState() {
@@ -78,9 +79,7 @@ class _MainShellState extends State<MainShell> {
   void _select(int index) {
     final isHome = index == AppTab.home.index;
     final isChat = index == AppTab.chat.index;
-    if (index == _index && index != AppTab.memory.index && !isHome && !isChat) {
-      return;
-    }
+    final isSettings = index == AppTab.settings.index;
     setState(() {
       if (index == AppTab.memory.index) _memoryRevision++;
       // 홈 탭 안에 알림 화면이 떠 있어도 홈을 누르면 홈으로 돌아온다.
@@ -90,6 +89,8 @@ class _MainShellState extends State<MainShell> {
       if (isHome && index == _index) _homeReselects++;
       // 대화를 누르면 언제든 가장 최근 글로 내린다.
       if (isChat) _chatTaps++;
+      // 설정도 홈처럼, 설정에 있는데 또 누르면 맨 위로 올린다.
+      if (isSettings && index == _index) _settingsReselects++;
       _index = index;
     });
   }
@@ -119,7 +120,7 @@ class _MainShellState extends State<MainShell> {
                     ),
                     FamilyChatScreen(tabTaps: _chatTaps),
                     MemoryAddFlow(key: ValueKey(_memoryRevision)),
-                    const SettingsFlow(),
+                    SettingsFlow(scrollToTopSignal: _settingsReselects),
                   ],
                 ),
               ),

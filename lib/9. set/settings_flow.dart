@@ -30,11 +30,41 @@ const Color _green = Color(0xFF5D9E41);
 final SettingsApi _api = SettingsApi();
 
 /// 설정 탭. 탭 사이 이동은 MainShell 이 맡는다.
-class SettingsFlow extends StatelessWidget {
-  const SettingsFlow({super.key});
+class SettingsFlow extends StatefulWidget {
+  const SettingsFlow({super.key, this.scrollToTopSignal = 0});
+
+  /// 바뀌면 맨 위로 올린다. 설정에 있는데 네비바의 설정을 또 눌렀을 때다.
+  final int scrollToTopSignal;
 
   @override
-  Widget build(BuildContext context) => const SettingsHubScreen();
+  State<SettingsFlow> createState() => _SettingsFlowState();
+}
+
+class _SettingsFlowState extends State<SettingsFlow> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(SettingsFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollToTopSignal != widget.scrollToTopSignal &&
+        _scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      SettingsHubScreen(scrollController: _scrollController);
 }
 
 /// 설정 허브에서 한 번에 불러오는 것들(각 화면 부제목에 쓰인다).
@@ -111,9 +141,12 @@ Future<String> _appVersion() async {
 }
 
 class SettingsHubScreen extends StatelessWidget {
-  const SettingsHubScreen({super.key, this.onBack});
+  const SettingsHubScreen({super.key, this.onBack, this.scrollController});
 
   final VoidCallback? onBack;
+
+  /// 네비바에서 설정을 또 누르면 맨 위로 올리려고 바깥에서 쥔다.
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +185,11 @@ class SettingsHubScreen extends StatelessWidget {
             child: _AsyncView<_HubData>(
               load: _loadHub,
               builder: (context, data, reload) =>
-                  _HubBody(data: data, reload: reload),
+                  _HubBody(
+                    data: data,
+                    reload: reload,
+                    scrollController: scrollController,
+                  ),
             ),
           ),
         ],
@@ -162,10 +199,15 @@ class SettingsHubScreen extends StatelessWidget {
 }
 
 class _HubBody extends StatelessWidget {
-  const _HubBody({required this.data, required this.reload});
+  const _HubBody({
+    required this.data,
+    required this.reload,
+    this.scrollController,
+  });
 
   final _HubData data;
   final Future<void> Function() reload;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -175,6 +217,7 @@ class _HubBody extends StatelessWidget {
     final dnd = data.dnd;
 
     return ListView(
+      controller: scrollController,
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
