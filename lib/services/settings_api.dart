@@ -488,6 +488,47 @@ class SettingsApi {
     );
   }
 
+  /// 올린 추억 목록(최신순). 같은 어르신의 가족이 올린 것까지 모두 나온다.
+  Future<List<MemoryItem>> memories(int userId) async {
+    final d = await _send('GET', '/users/$userId/memories');
+    return (d as List)
+        .map((e) => MemoryItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// 추억 수정. null 인 값은 보내지 않아 그대로 둔다.
+  ///
+  /// 사진을 바꿀 때는 [imageUrl] 과 [originalImageUrl] 을 같이 보낸다. 원본이
+  /// 없으면 서버가 예전 원본을 지운다(인형이 바뀌기 전 사진을 읽지 않게).
+  /// [period]·[description] 에 빈 문자열을 주면 지운다.
+  Future<MemoryItem> updateMemory(
+    int memoryId, {
+    String? imageUrl,
+    String? originalImageUrl,
+    String? title,
+    String? period,
+    String? description,
+  }) async {
+    final d = await _send(
+      'PATCH',
+      '/memories/$memoryId',
+      body: {
+        if (imageUrl != null && imageUrl.isNotEmpty) ...{
+          'imageUrl': imageUrl,
+          'originalImageUrl': ?originalImageUrl,
+        },
+        'title': ?title,
+        'period': ?period,
+        'description': ?description,
+      },
+    );
+    return MemoryItem.fromJson(d as Map<String, dynamic>);
+  }
+
+  Future<void> deleteMemory(int memoryId) async {
+    await _send('DELETE', '/memories/$memoryId');
+  }
+
   // ── 가족 대화방 ────────────────────────────────────
   /// 대화 목록. 서버는 최신순으로 주므로 화면 순서에 맞게 뒤집어 준다.
   /// 조회하면 서버가 안 읽은 메시지를 읽음 처리한다.
@@ -1351,6 +1392,40 @@ class ConversationTurn {
   /// 모리가 답하기 전에 대화가 끊겼으면 비어 있다.
   final String mori;
   final DateTime? at;
+}
+
+/// 올린 추억 한 건.
+class MemoryItem {
+  MemoryItem({
+    required this.memoryId,
+    required this.title,
+    this.imageUrl,
+    this.period,
+    this.description,
+    this.createdAt,
+  });
+
+  factory MemoryItem.fromJson(Map<String, dynamic> json) => MemoryItem(
+    memoryId: json['memoryId'] as int,
+    title: (json['title'] as String?) ?? '',
+    imageUrl: json['imageUrl'] as String?,
+    period: json['period'] as String?,
+    description: json['description'] as String?,
+    createdAt: DateTime.tryParse(
+      (json['createdAt'] as String?) ?? '',
+    )?.toLocal(),
+  );
+
+  final int memoryId;
+  final String title;
+
+  /// 화면용(5:3) 사진. 서버가 한 시간짜리 서명 주소로 준다.
+  final String? imageUrl;
+
+  /// 예: '오늘', '몇 년 전'. 앱 칩 말고 다른 말이 들어 있을 수도 있다.
+  final String? period;
+  final String? description;
+  final DateTime? createdAt;
 }
 
 /// 가족 대화방 메시지 한 건.
