@@ -36,7 +36,7 @@ void main() {
     expect(_chip('새 추억'), findsOneWidget);
 
     await tester.pumpWidget(_wrap(MemoryAddScreen(
-      onSave: ({required photo, required filename, required title,
+      onSave: ({required photo, required title,
                 required period, required description}) async {},
       onSelectNewMemory: () {})));
     await tester.pumpAndSettle();
@@ -53,7 +53,7 @@ void main() {
     final onType = tester.getTopLeft(find.text(label));
 
     await tester.pumpWidget(_wrap(MemoryAddScreen(
-      onSave: ({required photo, required filename, required title,
+      onSave: ({required photo, required title,
                 required period, required description}) async {},
       onSelectNewMemory: () {})));
     await tester.pumpAndSettle();
@@ -75,7 +75,7 @@ void main() {
 
     await check(MemoryTypeScreen(onOpenMemoryForm: () {}, onSave: () {}));
     await check(MemoryAddScreen(
-      onSave: ({required photo, required filename, required title,
+      onSave: ({required photo, required title,
                 required period, required description}) async {},
       onSelectNewMemory: () {}));
   });
@@ -84,7 +84,7 @@ void main() {
     _usePhoneScreen(tester);
 
     await tester.pumpWidget(_wrap(MemoryAddScreen(
-      onSave: ({required photo, required filename, required title,
+      onSave: ({required photo, required title,
                 required period, required description}) async {},
       onSelectNewMemory: () {})));
     await tester.pumpAndSettle();
@@ -101,7 +101,7 @@ void main() {
   testWidgets("'언제 기억인가요' 칩 넷이 한 줄에 선다", (tester) async {
     _usePhoneScreen(tester);
     await tester.pumpWidget(_wrap(MemoryAddScreen(
-      onSave: ({required photo, required filename, required title,
+      onSave: ({required photo, required title,
                 required period, required description}) async {},
       onSelectNewMemory: () {})));
     await tester.pumpAndSettle();
