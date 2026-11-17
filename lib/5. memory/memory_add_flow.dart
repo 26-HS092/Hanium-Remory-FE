@@ -8,6 +8,8 @@ import '../services/session_store.dart';
 import '../main_shell.dart';
 import '../services/settings_api.dart';
 
+part 'memory_manage.dart';
+
 const Color _bg = Color(0xFFFBF6EE);
 const Color _brown = Color(0xFF936249);
 const Color _dark = Color(0xFF2F2521);
@@ -112,6 +114,13 @@ class _MemoryAddFlowState extends State<MemoryAddFlow> {
     setState(() => _showMemoryForm = false);
   }
 
+  /// 올린 추억 목록. 고치거나 지우고 돌아오면 입력 중이던 내용은 그대로다.
+  void _openList() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const MemoryListScreen()),
+    );
+  }
+
   void _goHome() {
     _saved = false;
     _showMemoryForm = false;
@@ -132,11 +141,13 @@ class _MemoryAddFlowState extends State<MemoryAddFlow> {
         onSave: _saveMemory,
         elderName: _elder?.name,
         onSelectNewMemory: _openNewMemoryForm,
+        onOpenList: _openList,
       );
     }
     return MemoryTypeScreen(
       onOpenMemoryForm: _openMemoryForm,
       onSave: _saveNewMemory,
+      onOpenList: _openList,
     );
   }
 }
@@ -154,10 +165,14 @@ class MemoryTypeScreen extends StatelessWidget {
     super.key,
     required this.onOpenMemoryForm,
     required this.onSave,
+    this.onOpenList,
   });
 
   final VoidCallback onOpenMemoryForm;
   final VoidCallback onSave;
+
+  /// 헤더의 '올린 추억' 버튼. 없으면 버튼을 숨긴다.
+  final VoidCallback? onOpenList;
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +184,12 @@ class MemoryTypeScreen extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(height: 10.h),
-              _Header(title: '기억 추가', actionText: '저장', onAction: onSave),
+              _Header(
+                title: '기억 추가',
+                actionText: '저장',
+                onAction: onSave,
+                onList: onOpenList,
+              ),
               SizedBox(height: _headerGap),
               Expanded(
                 child: SingleChildScrollView(
@@ -257,7 +277,11 @@ class MemoryAddScreen extends StatefulWidget {
     required this.onSave,
     required this.onSelectNewMemory,
     this.elderName,
+    this.onOpenList,
   });
+
+  /// 헤더의 '올린 추억' 버튼. 없으면 버튼을 숨긴다.
+  final VoidCallback? onOpenList;
 
   final MemorySubmit onSave;
   /// '새 기억' 칩을 눌렀을 때. 두 화면은 칩으로 오가는 짝이다.
@@ -344,6 +368,7 @@ class _MemoryAddScreenState extends State<MemoryAddScreen> {
                 title: '기억 추가',
                 actionText: _busy ? '저장 중…' : '저장',
                 onAction: _busy ? null : _submit,
+                onList: widget.onOpenList,
               ),
               SizedBox(height: _headerGap),
               Expanded(
@@ -532,12 +557,16 @@ class _Header extends StatelessWidget {
     this.actionText,
     this.onAction,
     this.onBack,
+    this.onList,
   });
 
   final String title;
   final String? actionText;
   final VoidCallback? onAction;
   final VoidCallback? onBack;
+
+  /// 있으면 저장 버튼 앞에 '올린 추억' 버튼을 둔다.
+  final VoidCallback? onList;
 
   @override
   Widget build(BuildContext context) {
@@ -564,6 +593,22 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
+          if (onList != null) ...[
+            TextButton.icon(
+              onPressed: onList,
+              style: TextButton.styleFrom(
+                foregroundColor: _brown,
+                padding: EdgeInsets.symmetric(horizontal: 8.w),
+                minimumSize: Size(0, 36.h),
+              ),
+              icon: Icon(Icons.photo_library_outlined, size: 18.sp),
+              label: Text(
+                '올린 추억',
+                style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w900),
+              ),
+            ),
+            SizedBox(width: 4.w),
+          ],
           if (actionText != null)
             SizedBox(
               height: 36.h,
@@ -596,10 +641,17 @@ class _Header extends StatelessWidget {
 }
 
 class _PhotoUploadBox extends StatelessWidget {
-  const _PhotoUploadBox({required this.imageBytes, required this.onTap});
+  const _PhotoUploadBox({
+    required this.imageBytes,
+    required this.onTap,
+    this.imageUrl,
+  });
 
   final Uint8List? imageBytes;
   final VoidCallback onTap;
+
+  /// 이미 올린 사진. 새로 고른 사진([imageBytes])이 있으면 그쪽을 보여준다.
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -614,7 +666,7 @@ class _PhotoUploadBox extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(10.r),
         ),
-        child: imageBytes == null
+        child: imageBytes == null && (imageUrl == null || imageUrl!.isEmpty)
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -635,7 +687,19 @@ class _PhotoUploadBox extends StatelessWidget {
             : Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.memory(imageBytes!, fit: BoxFit.cover),
+                  if (imageBytes != null)
+                    Image.memory(imageBytes!, fit: BoxFit.cover)
+                  else
+                    Image.network(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      // 서명이 만료됐거나 네트워크가 끊겼을 때 빈 칸 대신.
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.broken_image_outlined,
+                        size: 32.sp,
+                        color: _muted,
+                      ),
+                    ),
                   Positioned(
                     right: 10.w,
                     bottom: 10.h,
