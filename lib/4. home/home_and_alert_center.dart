@@ -74,7 +74,17 @@ String activityTitleOf(String type) {
 }
 
 class HomeAndAlertPreview extends StatefulWidget {
-  const HomeAndAlertPreview({super.key});
+  const HomeAndAlertPreview({
+    super.key,
+    this.homeTaps = 0,
+    this.homeReselects = 0,
+  });
+
+  /// 네비바에서 홈을 누른 횟수. 바뀌면 알림 화면을 닫고 홈을 보여준다.
+  final int homeTaps;
+
+  /// 홈에 있는데 홈을 또 누른 횟수. 바뀌면 홈을 맨 위로 올린다.
+  final int homeReselects;
 
   @override
   State<HomeAndAlertPreview> createState() => _HomeAndAlertPreviewState();
@@ -84,17 +94,33 @@ class _HomeAndAlertPreviewState extends State<HomeAndAlertPreview> {
   bool _showAlerts = false;
 
   @override
+  void didUpdateWidget(HomeAndAlertPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.homeTaps != widget.homeTaps) _showAlerts = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _showAlerts
         ? AlertCenterScreen(onBack: () => setState(() => _showAlerts = false))
-        : HomeScreen(onOpenAlerts: () => setState(() => _showAlerts = true));
+        : HomeScreen(
+            scrollToTopSignal: widget.homeReselects,
+            onOpenAlerts: () => setState(() => _showAlerts = true),
+          );
   }
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.onOpenAlerts});
+  const HomeScreen({
+    super.key,
+    required this.onOpenAlerts,
+    this.scrollToTopSignal = 0,
+  });
 
   final VoidCallback onOpenAlerts;
+
+  /// 바뀌면 맨 위로 올린다. 홈에 있는데 네비바의 홈을 또 눌렀을 때다.
+  final int scrollToTopSignal;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -102,6 +128,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final SettingsApi _api = SettingsApi();
+  final ScrollController _scrollController = ScrollController();
 
   /// 인형이 말을 듣기 시작하면(웨이크워드) 서버의 '대화중'이 바뀐다. 서버가 앱으로
   /// 밀어주는 경로가 없어서, 홈이 떠 있는 동안만 이 간격으로 다시 물어본다.
@@ -130,7 +157,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _poll?.cancel();
     PushService.arrived.removeListener(_refresh);
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollToTopSignal != widget.scrollToTopSignal &&
+        _scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
@@ -236,6 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

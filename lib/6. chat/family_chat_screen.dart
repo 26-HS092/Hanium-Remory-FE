@@ -17,7 +17,10 @@ const Color _muted = Color(0xFF7C6B61);
 const Color _line = Color(0xFFE8DCD2);
 
 class FamilyChatScreen extends StatefulWidget {
-  const FamilyChatScreen({super.key});
+  const FamilyChatScreen({super.key, this.tabTaps = 0});
+
+  /// 네비바에서 대화를 누른 횟수. 바뀌면 가장 최근 글로 내린다.
+  final int tabTaps;
 
   @override
   State<FamilyChatScreen> createState() => _FamilyChatScreenState();
@@ -62,6 +65,12 @@ class _FamilyChatScreenState extends State<FamilyChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(FamilyChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tabTaps != widget.tabTaps) _scrollToBottom();
   }
 
   /// 대화방을 열 때 한 번: 어르신·가족 이름을 챙기고 첫 목록을 받는다.
