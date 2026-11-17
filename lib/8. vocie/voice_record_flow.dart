@@ -390,8 +390,8 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
   ///    읽다 보면 말이 나오는 순서다.
   ///  - '사랑해요' 같은 낯간지러운 말은 넣지 않는다. 소리 내 읽기 부담스러워
   ///    끝맺음에서 목소리가 딱딱해진다.
-  ///  - 안내대로 60초를 채울 만큼 쓴다. 모자라면 늘어지거나 되풀이하게 되고,
-  ///    그 부분에서 톤이 평평해진다.
+  ///  - 15초만 읽어도 되지만, 천천히 읽는 분도 끊기지 않게 넉넉히 쓴다.
+  ///    모자라면 늘어지거나 되풀이하게 되고, 그 부분에서 톤이 평평해진다.
   static const _script =
       '저예요. 그동안 잘 지내셨어요?\n\n'
       '여기는 아침저녁으로 좀 쌀쌀해졌어요. 낮에는 또 볕이 좋고요. '
@@ -557,7 +557,7 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
               SizedBox(height: 16.h),
               Row(
                 children: [
-                  Text('30초 이상 읽어주세요', style: _caption()),
+                  Text('15초 이상 읽어주세요', style: _caption()),
                   const Spacer(),
                   Text(
                     '${_time(_seconds)} / 05:00',
@@ -588,7 +588,7 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Text(
-                  '아래 대본을 처음부터 끝까지 모두 읽어주세요.',
+                  '끝까지 읽지 않아도 돼요. 15초 이상만 읽어주세요.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12.sp,
@@ -603,18 +603,6 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
                   Text('고정 대본', style: _label()),
                   SizedBox(width: 8.w),
                   Text('일상 안부', style: _label(size: 13.sp)),
-                  Container(
-                    margin: EdgeInsets.only(left: 8.w),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 7.w,
-                      vertical: 3.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _softYellow,
-                      borderRadius: BorderRadius.circular(99.r),
-                    ),
-                    child: Text('약 2분', style: _tiny(color: _brown)),
-                  ),
                   const Spacer(),
                 ],
               ),
@@ -1066,7 +1054,7 @@ class _Header extends StatelessWidget {
 class _TipBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final tips = ['조용한 곳에서 녹음해주세요', '천천히 또박또박 읽어주세요', '30초 정도면 충분해요'];
+    final tips = ['조용한 곳에서 녹음해주세요', '천천히 또박또박 읽어주세요', '15초 정도면 충분해요'];
 
     return Container(
       width: double.infinity,
