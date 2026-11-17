@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../main_shell.dart';
 import '../services/auth_api.dart' show kBackendBaseUrl;
+import '../services/photo_prep.dart';
 import '../services/session_store.dart';
 import '../services/settings_api.dart';
 
@@ -270,17 +270,15 @@ class _FamilyChatScreenState extends State<FamilyChatScreen> {
     final userId = _userId;
     if (userId == null || _sending) return;
 
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    if (!mounted) return;
+    // 인형 화면 비율(5:3)로 자르고 줄인다. 원본은 인형이 받기에 너무 크다.
+    final photo = await pickPhotoForDoll(context);
+    if (photo == null || !mounted) return;
 
     setState(() => _sending = true);
     try {
       final imageUrl = await _api.uploadImage(
-        bytes: bytes,
-        // 서버가 확장자로 이미지 종류를 가리므로 원본 이름을 그대로 넘긴다.
-        filename: picked.name,
+        bytes: photo.bytes,
+        filename: photo.filename,
         userId: userId,
       );
       await _api.sendChatMessage(userId, imageUrl: imageUrl);
