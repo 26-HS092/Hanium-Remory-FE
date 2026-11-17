@@ -45,7 +45,7 @@ class _FamilyChatScreenState extends State<FamilyChatScreen> {
   int? _userId;
   int? _myProtectorId;
   String _elderInitial = '';
-  String _elderName = '';
+  String _elderName = SessionStore.elderName ?? '';
   final Map<int, String> _memberInitials = {};
 
   /// 대화방에 연결된 가족 수. 1명(나뿐)이면 헤더 배지를 숨긴다.
@@ -309,12 +309,18 @@ class _FamilyChatScreenState extends State<FamilyChatScreen> {
   void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      final bottom = _scrollController.position.maxScrollExtent;
+      final position = _scrollController.position;
+      final bottom = position.maxScrollExtent;
       if (animate) {
+        // 멀리서 한 번에 훑어 내리면 빠르게 쏠렸다가 멈춰서 튀는 것처럼 보인다.
+        // 한 화면 넘게 떨어져 있으면 바로 위까지 먼저 옮기고, 남은 한 화면만
+        // 천천히 감속하며 내려온다.
+        final near = bottom - position.viewportDimension * 0.6;
+        if (position.pixels < near) _scrollController.jumpTo(near);
         _scrollController.animateTo(
           bottom,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
         );
       } else {
         _scrollController.jumpTo(bottom);

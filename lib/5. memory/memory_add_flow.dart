@@ -139,7 +139,7 @@ class _MemoryAddFlowState extends State<MemoryAddFlow> {
     if (_showMemoryForm) {
       return MemoryAddScreen(
         onSave: _saveMemory,
-        elderName: _elder?.name,
+        elderName: _elder?.name ?? SessionStore.elderName,
         onSelectNewMemory: _openNewMemoryForm,
         onOpenList: _openList,
       );

@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 
 import '../main_shell.dart';
 import '../services/settings_api.dart';
+import '../services/session_store.dart';
 
 const Color _bg = Color(0xFFFBF6EE);
 const Color _brown = Color(0xFF936249);
@@ -34,16 +35,18 @@ class _VoiceRecordFlowState extends State<VoiceRecordFlow> {
   int _recordedSeconds = 0;
 
   /// 안내 문구에 쓸 어르신 이름. 못 받으면 문구에서 이름을 뺀다.
-  late String? _elderName = widget.elderName;
+  late String? _elderName = widget.elderName ?? SessionStore.elderName;
 
   /// 이름을 받아오는 중인지. 그동안 문구를 비워둬야 '이야기해요' 가 떴다가
-  /// '김순자님과 이야기해요' 로 바뀌는 깜빡임이 없다.
-  late bool _nameLoading = widget.elderName == null;
+  /// '김순자님과 이야기해요' 로 바뀌는 깜빡임이 없다. 기억해 둔 이름이 있으면
+  /// 기다리지 않는다.
+  late bool _nameLoading = _elderName == null;
 
   @override
   void initState() {
     super.initState();
-    if (_nameLoading) _loadElderName();
+    // 기억해 둔 이름이 바뀌었을 수도 있으니 넘겨받은 게 없으면 새로 받는다.
+    if (widget.elderName == null) _loadElderName();
   }
 
   Future<void> _loadElderName() async {
@@ -55,7 +58,8 @@ class _VoiceRecordFlowState extends State<VoiceRecordFlow> {
     }
     if (!mounted) return;
     setState(() {
-      _elderName = (name == null || name.isEmpty) ? null : name;
+      // 못 받았으면 기억해 둔 이름을 그대로 둔다.
+      if (name != null && name.isNotEmpty) _elderName = name;
       _nameLoading = false;
     });
   }
