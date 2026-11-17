@@ -557,7 +557,7 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
               SizedBox(height: 16.h),
               Row(
                 children: [
-                  Text('60초 이상 읽어주세요', style: _caption()),
+                  Text('30초 이상 읽어주세요', style: _caption()),
                   const Spacer(),
                   Text(
                     '${_time(_seconds)} / 05:00',
@@ -1066,7 +1066,7 @@ class _Header extends StatelessWidget {
 class _TipBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final tips = ['조용한 곳에서 녹음해주세요', '천천히 또박또박 읽어주세요', '1~3분 정도면 충분해요'];
+    final tips = ['조용한 곳에서 녹음해주세요', '천천히 또박또박 읽어주세요', '30초 정도면 충분해요'];
 
     return Container(
       width: double.infinity,
