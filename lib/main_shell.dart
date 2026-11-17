@@ -63,6 +63,9 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   late int _index = widget.initialTab.index;
   int _memoryRevision = 0;
+  int _homeTaps = 0;
+  int _homeReselects = 0;
+  int _chatTaps = 0;
 
   @override
   void initState() {
@@ -73,10 +76,21 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _select(int index) {
-    if (index == _index && index != AppTab.memory.index) return;
+    final isHome = index == AppTab.home.index;
+    final isChat = index == AppTab.chat.index;
+    if (index == _index && index != AppTab.memory.index && !isHome && !isChat) {
+      return;
+    }
     setState(() {
-      _index = index;
       if (index == AppTab.memory.index) _memoryRevision++;
+      // 홈 탭 안에 알림 화면이 떠 있어도 홈을 누르면 홈으로 돌아온다.
+      if (isHome) _homeTaps++;
+      // 홈에 있는데 홈을 또 누르면 맨 위로 올린다. 다른 탭에서 돌아올 때는
+      // 보던 자리를 그대로 둔다.
+      if (isHome && index == _index) _homeReselects++;
+      // 대화를 누르면 언제든 가장 최근 글로 내린다.
+      if (isChat) _chatTaps++;
+      _index = index;
     });
   }
 
@@ -99,8 +113,11 @@ class _MainShellState extends State<MainShell> {
                 child: IndexedStack(
                   index: _index,
                   children: [
-                    const HomeAndAlertPreview(),
-                    const FamilyChatScreen(),
+                    HomeAndAlertPreview(
+                      homeTaps: _homeTaps,
+                      homeReselects: _homeReselects,
+                    ),
+                    FamilyChatScreen(tabTaps: _chatTaps),
                     MemoryAddFlow(key: ValueKey(_memoryRevision)),
                     const SettingsFlow(),
                   ],
