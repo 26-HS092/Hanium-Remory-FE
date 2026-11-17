@@ -431,21 +431,44 @@ class SettingsApi {
     required String filename,
     int? userId,
   }) async {
-    final d = await _sendMultipartBytes(
-      '/files/images',
-      field: 'file',
+    return (await uploadPhoto(
       bytes: bytes,
       filename: filename,
-      fields: userId == null ? null : {'userId': '$userId'},
+      userId: userId,
+    )).imageUrl;
+  }
+
+  /// 인형 화면에 띄울 사진을 올린다. [original] 은 자르기 전 사진(추억용).
+  ///
+  /// 서버는 둘 다 화면용 크기로 줄여 따로 저장하고 각각의 URL 을 준다.
+  Future<({String imageUrl, String? originalUrl})> uploadPhoto({
+    required Uint8List bytes,
+    required String filename,
+    Uint8List? original,
+    int? userId,
+  }) async {
+    final d =
+        await _sendMultipartBytes(
+              '/files/images',
+              field: 'file',
+              bytes: bytes,
+              filename: filename,
+              fields: userId == null ? null : {'userId': '$userId'},
+              extraFiles: original == null ? null : {'original': original},
+            )
+            as Map<String, dynamic>;
+    return (
+      imageUrl: d['imageUrl'] as String,
+      originalUrl: d['originalUrl'] as String?,
     );
-    return (d as Map<String, dynamic>)['imageUrl'] as String;
   }
 
   // ── 추억 ───────────────────────────────────────────
-  /// 추억 등록. 사진이 있으면 uploadImage가 돌려준 imageUrl을 함께 넣는다.
+  /// 추억 등록. 사진이 있으면 uploadPhoto 가 돌려준 URL 들을 함께 넣는다.
   Future<void> createMemory({
     required int userId,
     String? imageUrl,
+    String? originalImageUrl,
     required String title,
     String? period,
     String? description,
@@ -455,6 +478,8 @@ class SettingsApi {
       '/users/$userId/memories',
       body: {
         if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+        if (originalImageUrl != null && originalImageUrl.isNotEmpty)
+          'originalImageUrl': originalImageUrl,
         'title': title,
         if (period != null && period.isNotEmpty) 'period': period,
         if (description != null && description.isNotEmpty)
@@ -676,6 +701,7 @@ class SettingsApi {
     required Uint8List bytes,
     required String filename,
     Map<String, String>? fields,
+    Map<String, Uint8List>? extraFiles,
     bool allowRetry = true,
   }) async {
     final token = await SessionStore.accessToken();
@@ -689,6 +715,11 @@ class SettingsApi {
     request.files.add(
       http.MultipartFile.fromBytes(field, bytes, filename: filename),
     );
+    extraFiles?.forEach((name, data) {
+      request.files.add(
+        http.MultipartFile.fromBytes(name, data, filename: filename),
+      );
+    });
 
     final streamed = await _client.send(request);
     final res = await http.Response.fromStream(streamed);
@@ -699,6 +730,7 @@ class SettingsApi {
         bytes: bytes,
         filename: filename,
         fields: fields,
+        extraFiles: extraFiles,
         allowRetry: false,
       );
     }
@@ -1189,6 +1221,7 @@ class WeeklyReportData {
       );
 
   final int reportId;
+
   /// 어느 주의 요약인지 — 그 주 월요일. 만들어진 시각(createdAt)과 다르다.
   final DateTime? weekStart;
   final int totalConversationCount;

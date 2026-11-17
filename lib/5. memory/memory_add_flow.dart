@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../services/photo_prep.dart';
 import '../services/session_store.dart';
 import '../main_shell.dart';
 import '../services/settings_api.dart';
@@ -26,8 +26,7 @@ class MemoryAddFlow extends StatefulWidget {
 /// 입력 화면이 모아 넘겨주는 값. 저장은 흐름(Flow) 쪽에서 한다.
 typedef MemorySubmit =
     Future<void> Function({
-      required Uint8List? photo,
-      required String filename,
+      required PreparedPhoto? photo,
       required String title,
       required String period,
       required String description,
@@ -61,8 +60,7 @@ class _MemoryAddFlowState extends State<MemoryAddFlow> {
   /// 사진이 있으면 먼저 올리고, 없으면 글만으로 추억을 등록한다.
   /// 실패하면 예외를 그대로 올려 입력 화면이 사유를 보여주게 한다.
   Future<void> _saveMemory({
-    required Uint8List? photo,
-    required String filename,
+    required PreparedPhoto? photo,
     required String title,
     required String period,
     required String description,
@@ -71,16 +69,18 @@ class _MemoryAddFlowState extends State<MemoryAddFlow> {
     if (user == null) {
       throw ApiException('연결된 어르신이 없어요. 가족 연결을 먼저 마쳐주세요.', 400);
     }
-    final imageUrl = photo == null
+    final uploaded = photo == null
         ? null
-        : await _api.uploadImage(
-            bytes: photo,
-            filename: filename,
+        : await _api.uploadPhoto(
+            bytes: photo.bytes,
+            filename: photo.filename,
+            original: photo.original,
             userId: user.userId,
           );
     await _api.createMemory(
       userId: user.userId,
-      imageUrl: imageUrl,
+      imageUrl: uploaded?.imageUrl,
+      originalImageUrl: uploaded?.originalUrl,
       title: title,
       period: period,
       description: description,
@@ -273,8 +273,7 @@ class MemoryAddScreen extends StatefulWidget {
 class _MemoryAddScreenState extends State<MemoryAddScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _storyController = TextEditingController();
-  Uint8List? _selectedPhoto;
-  String _selectedPhotoName = '';
+  PreparedPhoto? _selectedPhoto;
   int _selectedWhen = 0;
   bool _busy = false;
 
@@ -288,14 +287,10 @@ class _MemoryAddScreenState extends State<MemoryAddScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    if (!mounted) return;
-    setState(() {
-      _selectedPhoto = bytes;
-      _selectedPhotoName = picked.name;
-    });
+    // 인형 화면 비율(5:3)로 자르고 줄인다. 자르면 자르기 전 사진도 함께 올린다.
+    final photo = await pickPhotoForDoll(context);
+    if (photo == null || !mounted) return;
+    setState(() => _selectedPhoto = photo);
   }
 
   void _snack(String msg) {
@@ -321,7 +316,6 @@ class _MemoryAddScreenState extends State<MemoryAddScreen> {
     try {
       await widget.onSave(
         photo: photo,
-        filename: _selectedPhotoName,
         title: title,
         period: _whenOptions[_selectedWhen],
         description: _storyController.text.trim(),
@@ -383,7 +377,7 @@ class _MemoryAddScreenState extends State<MemoryAddScreen> {
                       const _TypeGuide(isMemory: true),
                       SizedBox(height: 18.h),
                       _PhotoUploadBox(
-                        imageBytes: _selectedPhoto,
+                        imageBytes: _selectedPhoto?.bytes,
                         onTap: _pickPhoto,
                       ),
                       SizedBox(height: 18.h),
