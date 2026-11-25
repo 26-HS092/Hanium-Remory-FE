@@ -2696,9 +2696,18 @@ class _AddMedicationSheetState extends State<_AddMedicationSheet> {
 
   bool get _isEdit => widget.initial != null;
 
-  /// 저장된 "HH:MM" 을 스테퍼가 쓰는 값으로. 형식이 깨져 있으면 08:00.
-  List<int> get _initialParts {
-    final parts = (widget.initial?.time ?? '08:00').split(':');
+  /// 새 약은 시트를 연 현재 시각으로, 수정은 저장된 "HH:MM"으로 시작한다.
+  /// 저장된 값의 형식이 깨져 있으면 기존 기본값인 08:00을 사용한다.
+  late final List<int> _initialParts = _resolveInitialParts();
+
+  List<int> _resolveInitialParts() {
+    final savedTime = widget.initial?.time;
+    if (savedTime == null) {
+      final now = DateTime.now();
+      return [now.hour, now.minute];
+    }
+
+    final parts = savedTime.split(':');
     final h = parts.isEmpty ? null : int.tryParse(parts[0]);
     final m = parts.length < 2 ? null : int.tryParse(parts[1]);
     return [
