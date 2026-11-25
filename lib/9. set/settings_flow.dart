@@ -2600,8 +2600,13 @@ class _MedicationBodyState extends State<_MedicationBody> {
       showModalBottomSheet<_MedicationDraft>(
         context: context,
         backgroundColor: Colors.transparent,
+        barrierColor: Colors.black.withValues(alpha: .54),
         isScrollControlled: true,
-        builder: (_) => _AddMedicationSheet(initial: initial),
+        useSafeArea: true,
+        builder: (_) => FractionallySizedBox(
+          heightFactor: .68,
+          child: _AddMedicationSheet(initial: initial),
+        ),
       );
 
   @override
@@ -2726,129 +2731,150 @@ class _AddMedicationSheetState extends State<_AddMedicationSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-        decoration: const BoxDecoration(
-          color: _bg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: _line,
-                  borderRadius: BorderRadius.circular(99),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 16),
+          decoration: const BoxDecoration(
+            color: _bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: _line,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: 24.h),
-            Text(
-              _isEdit ? '약 수정' : '새 약 추가',
-              style: const TextStyle(
-                fontSize: 20,
-                color: _dark,
-                fontWeight: FontWeight.w900,
+              SizedBox(height: 24.h),
+              Text(
+                _isEdit ? '약 수정' : '새 약 추가',
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: _dark,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-            SizedBox(height: 18.h),
-            _InputField(
-              label: '약 이름',
-              controller: name,
-              hint: '예: 혈압약',
-              onChanged: (_) => setState(() {}),
-            ),
-            _Label('시간'),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: _cardDecoration(),
-              child: Row(
+              SizedBox(height: 18.h),
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _InputField(
+                        label: '약 이름',
+                        controller: name,
+                        hint: '예: 혈압약',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      _Label('시간'),
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: _cardDecoration(),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _NumberStepper(
+                                text: isAm ? '오전' : '오후',
+                                onAdd: () => setState(() => isAm = !isAm),
+                                onSub: () => setState(() => isAm = !isAm),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _NumberStepper(
+                                text: '${hour.toString().padLeft(2, '0')}시',
+                                onAdd: () =>
+                                    setState(() => hour = (hour % 12) + 1),
+                                onSub: () => setState(
+                                  () => hour = hour == 1 ? 12 : hour - 1,
+                                ),
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(
+                                ':',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: _brown,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: _NumberStepper(
+                                text: '${minute.toString().padLeft(2, '0')}분',
+                                onAdd: () =>
+                                    setState(() => minute = (minute + 1) % 60),
+                                onSub: () =>
+                                    setState(() => minute = (minute + 59) % 60),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
+                      _Label('복용 시점'),
+                      Row(
+                        children: ['식전', '식후', '공복', '아무때나']
+                            .map(
+                              (item) => Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: _ChoiceChipButton(
+                                    text: item,
+                                    selected: timing == item,
+                                    onTap: () => setState(() => timing = item),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 18.h),
+                    ],
+                  ),
+                ),
+              ),
+              Row(
                 children: [
                   Expanded(
-                    child: _NumberStepper(
-                      text: isAm ? '오전' : '오후',
-                      onAdd: () => setState(() => isAm = !isAm),
-                      onSub: () => setState(() => isAm = !isAm),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: _softButtonStyle(),
+                      child: const Text('취소'),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: _NumberStepper(
-                      text: '${hour.toString().padLeft(2, '0')}시',
-                      onAdd: () => setState(() => hour = (hour % 12) + 1),
-                      onSub: () =>
-                          setState(() => hour = hour == 1 ? 12 : hour - 1),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      ':',
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: _brown,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: _NumberStepper(
-                      text: '${minute.toString().padLeft(2, '0')}분',
-                      onAdd: () => setState(() => minute = (minute + 1) % 60),
-                      onSub: () => setState(() => minute = (minute + 59) % 60),
+                    child: ElevatedButton(
+                      onPressed: canAdd
+                          ? () => Navigator.pop(
+                              context,
+                              _MedicationDraft(
+                                name.text.trim(),
+                                _time24,
+                                timing,
+                              ),
+                            )
+                          : null,
+                      style: _primaryButtonStyle(),
+                      child: Text(_isEdit ? '저장' : '추가'),
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: 16.h),
-            _Label('복용 시점'),
-            Row(
-              children: ['식전', '식후', '공복', '아무때나']
-                  .map(
-                    (item) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _ChoiceChipButton(
-                          text: item,
-                          selected: timing == item,
-                          onTap: () => setState(() => timing = item),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            SizedBox(height: 18.h),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: _softButtonStyle(),
-                    child: const Text('취소'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: canAdd
-                        ? () => Navigator.pop(
-                            context,
-                            _MedicationDraft(name.text.trim(), _time24, timing),
-                          )
-                        : null,
-                    style: _primaryButtonStyle(),
-                    child: Text(_isEdit ? '저장' : '추가'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
